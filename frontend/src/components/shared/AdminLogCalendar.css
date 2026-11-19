@@ -1,0 +1,137 @@
+.alc-wrap { position: relative; }
+
+.alc-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  height: 32px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  background: #F9FAFB;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 490;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.alc-trigger:hover { background: #F9FAFB; border-color: #9CA3AF; }
+.alc-trigger-active { background: #EFF6FF; border-color: #185FA5; color: #185FA5; }
+.alc-trigger-active:hover { background: #EFF6FF; border-color: #13487d; color: #185FA5; }
+
+.alc-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 12px;
+  width: 214px;
+  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.alc-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.alc-month-label { font-size: 13px; font-weight: 600; color: #111827; }
+.alc-nav {
+  width: 26px; height: 26px;
+  border: 1.5px solid #E5E7EB; border-radius: 5px;
+  background: none; cursor: pointer;
+  font-size: 16px; color: #6B7280;
+  display: flex; align-items: center; justify-content: center;
+}
+.alc-nav:hover { background: #F3F4F6; }
+
+.alc-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+.alc-dow {
+  font-size: 9.5px; font-weight: 600; color: #9CA3AF;
+  text-align: center; padding: 3px 0; text-transform: uppercase;
+}
+.alc-day {
+  aspect-ratio: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  border-radius: 6px; cursor: pointer; gap: 2px;
+}
+.alc-day:hover { background: #e0e1e3; }   /* ALL days hover */
+.alc-day.alc-empty { cursor: default; opacity: 0.45; } /* no click, but hover shows */
+.alc-day.alc-has-activity:hover { background: #e0e1e3; }
+.alc-day.alc-selected { background: #185FA5; }
+.alc-day.alc-selected:hover { background: #185FA5; }   /* no hover change on selected */
+.alc-day.alc-selected .alc-num { color: #fff; font-weight: 600; }
+.alc-day.alc-today:not(.alc-selected) .alc-num { color: #374151; font-weight: 600; }
+.alc-num { font-size: 11px; color: #374151; line-height: 1; } /* slightly smaller */
+
+.alc-dot { width: 5px; height: 5px; border-radius: 50%; }
+.alc-dot-err  { background: #d84343; }
+.alc-dot-warn { background: #dcbe5a; }
+.alc-dot-ok   { background: #7cca3c; }
+.alc-dot-info { background: #5599eb; }
+
+.alc-footer {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid #E5E7EB;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.alc-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.alc-leg { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: #6B7280; }
+
+.alc-clear {
+  width: 100%;
+  padding: 6px;
+  background: #FEF2F2;
+  border: 1px solid #e59494;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #A32D2D;
+  cursor: pointer;
+}
+.alc-clear:hover { background: #FEE2E2; }  
+
+/* Dark mode */
+
+/* ── Trigger ── */
+[data-theme="dark"] .alc-trigger { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+[data-theme="dark"] .alc-trigger:hover { background: #253347; border-color: #60a5fa;  }
+[data-theme="dark"] .alc-trigger-active { background: #172035; border-color: #60a5fa; color: #60a5fa; }
+[data-theme="dark"] .alc-trigger-active:hover { background: #172035; border-color: #60a5fa; color: #60a5fa; }
+
+/* ── Dropdown ── */
+[data-theme="dark"] .alc-dropdown { background: #1e293b; border-color: #334155; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+[data-theme="dark"] .alc-month-label { color: #f1f5f9; }
+[data-theme="dark"] .alc-nav { border-color: #334155; color: #94a3b8; }
+[data-theme="dark"] .alc-nav:hover { background: #253347; color: #f1f5f9; }
+
+/* ── Day numbers ── */
+[data-theme="dark"] .alc-num { color: #cbd5e1; }
+[data-theme="dark"] .alc-day.alc-today:not(.alc-selected) .alc-num {
+  color: #f1f5f9;
+  font-weight: 700;
+}
+[data-theme="dark"] .alc-day.alc-selected .alc-num { color: #fff; font-weight: 600; }
+
+[data-theme="dark"] .alc-day:hover { background: #2d3f55; }
+[data-theme="dark"] .alc-day:hover:not(.alc-empty) { background: #253347; }
+
+[data-theme="dark"] .alc-day.alc-has-activity:hover { background: #253347; }
+
+[data-theme="dark"] .alc-day.alc-selected { background: #185FA5; }
+[data-theme="dark"] .alc-day.alc-selected:hover { background: #185FA5; }
+
+[data-theme="dark"] .alc-dot-err  { background: #d84343; }
+[data-theme="dark"] .alc-dot-warn { background: #dcbe5a; }
+[data-theme="dark"] .alc-dot-ok   { background: #7cca3c; }
+[data-theme="dark"] .alc-dot-info { background: #5599eb; }
+
+[data-theme="dark"] .alc-day.alc-today:not(.alc-selected) .alc-num { color: #b9cceb; }
+[data-theme="dark"] .alc-footer { border-top-color: #334155; }
+[data-theme="dark"] .alc-leg { color: #94a3b8; }
+[data-theme="dark"] .alc-clear { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
+[data-theme="dark"] .alc-clear:hover { background: #5a0e0e; }

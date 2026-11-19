@@ -1,0 +1,25 @@
+# API server
+fastapi
+pydantic
+python-multipart
+uvicorn[standard]
+
+# Google Cloud / Gemini / Firebase auth
+google-auth
+google-cloud-aiplatform
+google-cloud-storage
+google-genai
+requests
+
+# AWS S3 persistent storage
+boto3
+
+# Documents, audio conversion, and text-to-speech
+imageio-ffmpeg
+python-docx
+gTTS
+
+# Environment configuration
+python-dotenv
+tzdata
+tzdata

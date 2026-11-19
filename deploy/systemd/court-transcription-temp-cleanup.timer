@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Court Transcription temporary cleanup hourly
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+Unit=court-transcription-temp-cleanup.service
+
+[Install]
+WantedBy=timers.target

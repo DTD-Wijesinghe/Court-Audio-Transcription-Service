@@ -1,0 +1,16 @@
+[Unit]
+Description=Clean stale Court Transcription temporary workspaces
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=court-transcription
+Group=court-transcription
+WorkingDirectory=/opt/court-transcription/backend
+EnvironmentFile=-/etc/court-transcription/backend.env
+ExecStart=/opt/court-transcription/.venv/bin/python -m court_transcription.cleanup_temp
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/tmp/court-transcription

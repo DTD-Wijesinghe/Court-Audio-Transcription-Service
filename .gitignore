@@ -1,0 +1,35 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+**/__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js dependencies and build output
+**/node_modules/
+**/dist/
+**/build/
+
+# Local configuration and secrets
+**/.env
+**/.env.*
+!**/.env.example
+backend/credentials/
+*.pem
+*.key
+
+# Runtime data and generated files
+backend/transcripts/
+backend/uploads/
+backend/.runtime-temp/
+*.log
+backend/_write_test.txt
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.idea/
