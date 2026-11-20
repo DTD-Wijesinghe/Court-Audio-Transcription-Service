@@ -1,0 +1,894 @@
+openapi: 3.1.0
+info:
+  title: IntelliScribe Court Audio Transcription API
+  description: |
+    REST API for court audio upload, transcription, editing, finalization,
+    translation, and document download. All endpoints (except `/api/v1/health`)
+    require a Firebase ID token supplied as a Bearer token in the
+    `Authorization` header.
+  version: "1.0.0"
+  contact:
+    name: IntelliScribe Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.intelliscribe.example.com
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Audio Upload
+    description: Upload audio files and create transcription jobs
+  - name: Jobs
+    description: Query transcription job status
+  - name: Transcripts
+    description: Retrieve, edit, finalize, and post-process transcripts
+  - name: Downloads
+    description: Download transcript documents and audio files
+  - name: System
+    description: Health and system endpoints
+
+paths:
+  # ─── Audio Upload ──────────────────────────────────────────────────────────
+
+  /api/v1/uploads:
+    post:
+      operationId: uploadAudioFiles
+      summary: Upload audio file(s) and create a transcription job
+      tags:
+        - Audio Upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+                - case_number
+                - hearing_date
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: One or more audio files (WAV, MP3, FLAC, M4A, etc.)
+                case_number:
+                  type: string
+                  description: Court case number associated with this hearing
+                  example: "CASE-2024-001234"
+                hearing_date:
+                  type: string
+                  format: date
+                  description: Date of the hearing in YYYY-MM-DD format
+                  example: "2024-11-15"
+      responses:
+        "202":
+          description: Job created and queued for processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadJob"
+              example:
+                id: "job_abc123"
+                status: "queued"
+                message: "Audio uploaded successfully. Transcription queued."
+                fileName: "hearing_20241115.wav"
+                fileNames:
+                  - "hearing_20241115_part1.wav"
+                  - "hearing_20241115_part2.wav"
+                hearingDate: "2024-11-15"
+                caseNumber: "CASE-2024-001234"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Jobs ──────────────────────────────────────────────────────────────────
+
+  /api/v1/jobs/{job_id}:
+    get:
+      operationId: getJobStatus
+      summary: Get transcription job status
+      tags:
+        - Jobs
+      parameters:
+        - $ref: "#/components/parameters/job_id"
+      responses:
+        "200":
+          description: Job details and current status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadJob"
+              example:
+                id: "job_abc123"
+                status: "processing"
+                message: "Transcription in progress (segment 3 of 8)"
+                fileName: "hearing_20241115.wav"
+                fileNames:
+                  - "hearing_20241115_part1.wav"
+                  - "hearing_20241115_part2.wav"
+                hearingDate: "2024-11-15"
+                caseNumber: "CASE-2024-001234"
+                transcript: null
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Transcript Dates ──────────────────────────────────────────────────────
+
+  /api/v1/transcript-dates:
+    get:
+      operationId: listTranscriptDates
+      summary: List all dates that have available transcripts
+      tags:
+        - Transcripts
+      responses:
+        "200":
+          description: List of dates with transcripts
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - dates
+                  - defaultDate
+                properties:
+                  dates:
+                    type: array
+                    items:
+                      type: string
+                      format: date
+                    description: Sorted list of dates (YYYY-MM-DD) with at least one transcript
+                    example:
+                      - "2024-11-15"
+                      - "2024-11-14"
+                      - "2024-11-13"
+                  defaultDate:
+                    type: string
+                    format: date
+                    description: Most recent date recommended for initial display
+                    example: "2024-11-15"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Transcript List ───────────────────────────────────────────────────────
+
+  /api/v1/transcripts:
+    get:
+      operationId: listTranscripts
+      summary: List transcripts for a given date
+      tags:
+        - Transcripts
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date to filter transcripts (YYYY-MM-DD)
+          example: "2024-11-15"
+      responses:
+        "200":
+          description: Transcripts for the specified date
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - date
+                  - items
+                properties:
+                  date:
+                    type: string
+                    format: date
+                    example: "2024-11-15"
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TranscriptItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Single Transcript ─────────────────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}:
+    get:
+      operationId: getTranscript
+      summary: Get a single transcript with full content
+      tags:
+        - Transcripts
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+      responses:
+        "200":
+          description: Full transcript details including text content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Save Edited Transcript ────────────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}/edited:
+    put:
+      operationId: saveEditedTranscript
+      summary: Save an edited version of a transcript
+      tags:
+        - Transcripts
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: Full edited transcript text
+                  example: "COURT REPORTER: Proceeding commenced at 09:00 AM.\nJUDGE: Good morning..."
+      responses:
+        "200":
+          description: Edited transcript saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Finalize Transcript ───────────────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}/finalize:
+    post:
+      operationId: finalizeTranscript
+      summary: Finalize a transcript (locks it for official use)
+      tags:
+        - Transcripts
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: Final transcript text to lock in
+                  example: "COURT REPORTER: Proceeding commenced at 09:00 AM.\nJUDGE: Good morning..."
+      responses:
+        "200":
+          description: Transcript finalized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Transcript is already finalized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Post-Process ──────────────────────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}/post-process:
+    post:
+      operationId: postProcessTranscript
+      summary: Generate court proceedings document and/or translations
+      tags:
+        - Transcripts
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - translation_languages
+                - include_summary
+              properties:
+                translation_languages:
+                  type: array
+                  items:
+                    type: string
+                  description: BCP-47 language codes for translation (e.g. "si" for Sinhala, "ta" for Tamil)
+                  example:
+                    - "si"
+                    - "ta"
+                include_summary:
+                  type: boolean
+                  description: Whether to include an AI-generated summary
+                  example: true
+      responses:
+        "202":
+          description: Post-processing job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Audio (raw bytes) ─────────────────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}/audio:
+    get:
+      operationId: getAudioFile
+      summary: Get raw audio file bytes for a transcript
+      tags:
+        - Downloads
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+      responses:
+        "200":
+          description: Raw audio file content
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            audio/flac:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Audio Stream ──────────────────────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}/stream:
+    get:
+      operationId: streamAudio
+      summary: Stream audio file with HTTP Range support (for in-browser playback)
+      description: |
+        Supports `Range` request header for partial content streaming.
+        Authentication is provided via the `token` query parameter (Firebase JWT)
+        instead of the `Authorization` header, to allow `<audio>` element src usage.
+      tags:
+        - Downloads
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Filename of the audio file in storage
+          example: "hearing_20241115.wav"
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Firebase ID JWT token for authentication
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        "200":
+          description: Full audio file content
+          headers:
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial audio content (range response)
+          headers:
+            Content-Range:
+              schema:
+                type: string
+                example: "bytes 0-1023/204800"
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: Range Not Satisfiable
+
+  # ─── Download Transcript Document ─────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}/download/{version}:
+    get:
+      operationId: downloadTranscript
+      summary: Download a transcript document or SRT file
+      tags:
+        - Downloads
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - original
+              - edited
+              - final
+              - srt
+              - summary
+              - translation_combined
+          description: |
+            Version of the transcript to download:
+            - `original` — raw auto-generated transcript (DOCX)
+            - `edited` — human-edited version (DOCX)
+            - `final` — finalized/locked version (DOCX)
+            - `srt` — SubRip subtitle file
+            - `summary` — AI-generated summary document (DOCX)
+            - `translation_combined` — All translations combined (DOCX)
+      responses:
+        "200":
+          description: Document file download
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="CASE-2024-001234_final.docx"'
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+            application/x-subrip:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Get Named File ────────────────────────────────────────────────────────
+
+  /api/v1/transcripts/{item_id}/file:
+    get:
+      operationId: getNamedFile
+      summary: Get a named file from transcript storage
+      tags:
+        - Downloads
+      parameters:
+        - $ref: "#/components/parameters/item_id"
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Filename to retrieve from the transcript's storage folder
+          example: "translation_si.docx"
+      responses:
+        "200":
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Health Check ──────────────────────────────────────────────────────────
+
+  /api/v1/health:
+    get:
+      operationId: healthCheck
+      summary: Health check — no authentication required
+      tags:
+        - System
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-11-15T09:00:00Z"
+        "503":
+          description: Service unavailable
+
+# ─── Components ──────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID token obtained from Firebase Authentication
+
+  parameters:
+    item_id:
+      name: item_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the transcript item
+      example: "2024-11-15_CASE-2024-001234"
+
+    job_id:
+      name: job_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the transcription job
+      example: "job_abc123"
+
+  schemas:
+
+    UploadJob:
+      type: object
+      description: Represents an asynchronous transcription or post-processing job
+      properties:
+        id:
+          type: string
+          description: Unique job identifier
+          example: "job_abc123"
+        status:
+          type: string
+          enum:
+            - queued
+            - processing
+            - completed
+            - failed
+            - cancelled
+            - post_processing
+            - post_processing_complete
+          description: Current lifecycle status of the job
+          example: "processing"
+        message:
+          type: string
+          description: Human-readable status message or progress description
+          example: "Transcription in progress (segment 3 of 8)"
+        fileName:
+          type: string
+          description: Primary audio filename (for single-file uploads)
+          example: "hearing_20241115.wav"
+        fileNames:
+          type: array
+          items:
+            type: string
+          description: All audio filenames (for multi-file uploads)
+          example:
+            - "hearing_20241115_part1.wav"
+            - "hearing_20241115_part2.wav"
+        hearingDate:
+          type: string
+          format: date
+          description: Date of the hearing
+          example: "2024-11-15"
+        caseNumber:
+          type: string
+          description: Associated court case number
+          example: "CASE-2024-001234"
+        transcript:
+          oneOf:
+            - $ref: "#/components/schemas/TranscriptItem"
+            - type: "null"
+          description: Completed transcript, present when status is completed
+        errorCode:
+          type: string
+          description: Machine-readable error code if the job failed
+          example: "TRANSCRIPTION_FAILED"
+        error:
+          type: string
+          description: Human-readable error description if the job failed
+          example: "Audio quality too poor for reliable transcription"
+
+    TranscriptItem:
+      type: object
+      description: A court hearing transcript record with all associated metadata and content
+      properties:
+        id:
+          type: string
+          description: Unique transcript identifier
+          example: "2024-11-15_CASE-2024-001234"
+        date:
+          type: string
+          format: date
+          description: Date of the hearing
+          example: "2024-11-15"
+        folderName:
+          type: string
+          description: Storage folder name for this transcript's files
+          example: "2024-11-15_CASE-2024-001234"
+        caseNumber:
+          type: string
+          description: Court case number
+          example: "CASE-2024-001234"
+        court:
+          type: string
+          description: Court name or identifier
+          example: "High Court of Colombo"
+        uploadedBy:
+          type: string
+          description: User ID or display name of the uploader
+          example: "reporter@courts.lk"
+        transcriptText:
+          type: string
+          description: Original auto-generated transcript text
+          example: "COURT REPORTER: Proceeding commenced at 09:00 AM..."
+        editedTranscriptText:
+          type: string
+          description: Human-edited version of the transcript text
+          example: "COURT REPORTER: Proceeding commenced at 09:00 AM.\nJUDGE: Good morning..."
+        finalizedTranscriptText:
+          type: string
+          description: Finalized and locked transcript text
+          example: "COURT REPORTER: Proceeding commenced at 09:00 AM.\nJUDGE: Good morning..."
+        finalized:
+          type: boolean
+          description: Whether the transcript has been finalized and locked
+          example: false
+        translations:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptTranslation"
+          description: Available translations of the transcript
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptFile"
+          description: Files associated with this transcript in storage
+        audioAvailable:
+          type: boolean
+          description: Whether the source audio file is available for playback/download
+          example: true
+        hasSrt:
+          type: boolean
+          description: Whether an SRT subtitle file is available
+          example: true
+        proceedingAvailable:
+          type: boolean
+          description: Whether a formatted court proceedings document has been generated
+          example: false
+
+    TranscriptFile:
+      type: object
+      description: Metadata for a file stored in a transcript's storage folder
+      properties:
+        name:
+          type: string
+          description: Filename (without path)
+          example: "translation_si.docx"
+        size:
+          type: integer
+          format: int64
+          description: File size in bytes
+          example: 48523
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last modification timestamp (ISO 8601)
+          example: "2024-11-15T10:35:00Z"
+
+    TranscriptTranslation:
+      type: object
+      description: A translation of a transcript into another language
+      properties:
+        filename:
+          type: string
+          description: Filename of the translation document in storage
+          example: "translation_si.docx"
+        language:
+          type: string
+          description: BCP-47 language code of the translation
+          example: "si"
+        content:
+          type: string
+          description: Plain-text translation content (may be empty if only the file is available)
+          example: "විනිශ්චයකාර: සුබ උදෑසනක්..."
+
+    ErrorResponse:
+      type: object
+      description: Structured error response returned on 4xx/5xx status codes
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+              example: "RESOURCE_NOT_FOUND"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "The requested transcript was not found"
+            category:
+              type: string
+              description: Broad error category
+              enum:
+                - validation
+                - authentication
+                - authorization
+                - not_found
+                - conflict
+                - storage
+                - processing
+                - server
+              example: "not_found"
+            retryable:
+              type: boolean
+              description: Whether the client may safely retry the request
+              example: false
+        detail:
+          type: string
+          description: Optional additional technical detail for debugging
+          example: "No folder found matching id '2024-11-15_CASE-2024-001234'"
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: "INVALID_REQUEST"
+              message: "hearing_date must be in YYYY-MM-DD format"
+              category: "validation"
+              retryable: false
+
+    Unauthorized:
+      description: Missing or invalid Firebase ID token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "A valid Firebase ID token is required"
+              category: "authentication"
+              retryable: false
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: "RESOURCE_NOT_FOUND"
+              message: "The requested resource was not found"
+              category: "not_found"
+              retryable: false
+
+    PayloadTooLarge:
+      description: Uploaded file(s) exceed the maximum allowed size
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: "PAYLOAD_TOO_LARGE"
+              message: "File exceeds maximum allowed upload size"
+              category: "validation"
+              retryable: false
+
+    InternalServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: "INTERNAL_SERVER_ERROR"
+              message: "An unexpected error occurred. Please try again later."
+              category: "server"
+              retryable: true

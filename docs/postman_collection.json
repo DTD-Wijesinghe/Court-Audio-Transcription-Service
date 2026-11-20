@@ -1,0 +1,634 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "IntelliScribe Court Transcription API v1",
+    "description": "Complete REST API for court audio upload, transcription, editing, finalization, translation, and document download.\n\nAll endpoints (except `/api/v1/health`) require a Firebase ID token set in the `{{firebase_token}}` collection variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Base URL of the IntelliScribe API server"
+    },
+    {
+      "key": "firebase_token",
+      "value": "REPLACE_WITH_FIREBASE_ID_TOKEN",
+      "type": "string",
+      "description": "Firebase ID token obtained from Firebase Authentication"
+    },
+    {
+      "key": "item_id",
+      "value": "2024-11-15_CASE-2024-001234",
+      "type": "string",
+      "description": "Transcript item ID used across transcript endpoints"
+    },
+    {
+      "key": "job_id",
+      "value": "job_abc123",
+      "type": "string",
+      "description": "Job ID returned from an upload or post-process request"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{firebase_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Audio Upload",
+      "description": "Endpoints for uploading court audio files and creating transcription jobs.",
+      "item": [
+        {
+          "name": "Upload Audio File(s)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "Audio file(s) to upload (WAV, MP3, FLAC, M4A, etc.)"
+                },
+                {
+                  "key": "case_number",
+                  "value": "CASE-2024-001234",
+                  "type": "text",
+                  "description": "Court case number"
+                },
+                {
+                  "key": "hearing_date",
+                  "value": "2024-11-15",
+                  "type": "text",
+                  "description": "Hearing date in YYYY-MM-DD format"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/uploads",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "uploads"]
+            },
+            "description": "Upload one or more audio files to create a transcription job. Returns the job object with an `id` and initial `status` of `queued`."
+          },
+          "response": [
+            {
+              "name": "202 — Job Queued",
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"id\": \"job_abc123\",\n  \"status\": \"queued\",\n  \"message\": \"Audio uploaded successfully. Transcription queued.\",\n  \"fileName\": \"hearing_20241115.wav\",\n  \"fileNames\": [\"hearing_20241115.wav\"],\n  \"hearingDate\": \"2024-11-15\",\n  \"caseNumber\": \"CASE-2024-001234\",\n  \"transcript\": null,\n  \"errorCode\": null,\n  \"error\": null\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "description": "Endpoints for querying transcription job status.",
+      "item": [
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs", "{{job_id}}"]
+            },
+            "description": "Poll for the current status of a transcription or post-processing job. Poll until `status` is `completed`, `failed`, `post_processing_complete`, or `cancelled`."
+          },
+          "response": [
+            {
+              "name": "200 — Processing",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"id\": \"job_abc123\",\n  \"status\": \"processing\",\n  \"message\": \"Transcription in progress (segment 3 of 8)\",\n  \"fileName\": \"hearing_20241115.wav\",\n  \"fileNames\": [\"hearing_20241115.wav\"],\n  \"hearingDate\": \"2024-11-15\",\n  \"caseNumber\": \"CASE-2024-001234\",\n  \"transcript\": null,\n  \"errorCode\": null,\n  \"error\": null\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "200 — Completed",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"id\": \"job_abc123\",\n  \"status\": \"completed\",\n  \"message\": \"Transcription completed successfully.\",\n  \"fileName\": \"hearing_20241115.wav\",\n  \"fileNames\": [\"hearing_20241115.wav\"],\n  \"hearingDate\": \"2024-11-15\",\n  \"caseNumber\": \"CASE-2024-001234\",\n  \"transcript\": {\n    \"id\": \"2024-11-15_CASE-2024-001234\",\n    \"date\": \"2024-11-15\",\n    \"caseNumber\": \"CASE-2024-001234\",\n    \"finalized\": false,\n    \"audioAvailable\": true\n  },\n  \"errorCode\": null,\n  \"error\": null\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transcripts",
+      "description": "Endpoints for listing, retrieving, editing, finalizing, and post-processing transcripts.",
+      "item": [
+        {
+          "name": "List Transcript Dates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcript-dates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcript-dates"]
+            },
+            "description": "Returns all dates that have at least one transcript, plus a recommended `defaultDate` for initial display."
+          },
+          "response": [
+            {
+              "name": "200 — Dates List",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"dates\": [\"2024-11-15\", \"2024-11-14\", \"2024-11-13\"],\n  \"defaultDate\": \"2024-11-15\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "List Transcripts for a Date",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts?date=2024-11-15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts"],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2024-11-15",
+                  "description": "Date in YYYY-MM-DD format"
+                }
+              ]
+            },
+            "description": "Returns all transcript items for the given date. Each item contains metadata; use the single transcript endpoint to fetch full content."
+          },
+          "response": [
+            {
+              "name": "200 — Transcripts for Date",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"date\": \"2024-11-15\",\n  \"items\": [\n    {\n      \"id\": \"2024-11-15_CASE-2024-001234\",\n      \"date\": \"2024-11-15\",\n      \"folderName\": \"2024-11-15_CASE-2024-001234\",\n      \"caseNumber\": \"CASE-2024-001234\",\n      \"court\": \"High Court of Colombo\",\n      \"uploadedBy\": \"reporter@courts.lk\",\n      \"finalized\": false,\n      \"audioAvailable\": true,\n      \"hasSrt\": true,\n      \"proceedingAvailable\": false,\n      \"translations\": [],\n      \"files\": []\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Get Transcript (Full Content)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}"]
+            },
+            "description": "Retrieve the full transcript record including `transcriptText`, `editedTranscriptText`, `finalizedTranscriptText`, translations, and file metadata."
+          },
+          "response": [
+            {
+              "name": "200 — Full Transcript",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"id\": \"2024-11-15_CASE-2024-001234\",\n  \"date\": \"2024-11-15\",\n  \"folderName\": \"2024-11-15_CASE-2024-001234\",\n  \"caseNumber\": \"CASE-2024-001234\",\n  \"court\": \"High Court of Colombo\",\n  \"uploadedBy\": \"reporter@courts.lk\",\n  \"transcriptText\": \"JUDGE: Good morning. This is case number CASE-2024-001234...\",\n  \"editedTranscriptText\": null,\n  \"finalizedTranscriptText\": null,\n  \"finalized\": false,\n  \"translations\": [],\n  \"files\": [\n    {\"name\": \"transcript_original.docx\", \"size\": 32768, \"updatedAt\": \"2024-11-15T09:45:00Z\"}\n  ],\n  \"audioAvailable\": true,\n  \"hasSrt\": true,\n  \"proceedingAvailable\": false\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Save Edited Transcript",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"JUDGE: Good morning. This is case number CASE-2024-001234.\\nCOURT REPORTER: Proceeding commenced at 09:00 AM.\\nJUDGE: Counsel, please state your appearances.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/edited",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "edited"]
+            },
+            "description": "Save a human-edited version of the transcript text. This can be called multiple times; each call overwrites the previous edit. Returns the updated TranscriptItem."
+          },
+          "response": [
+            {
+              "name": "200 — Edited Saved",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"id\": \"2024-11-15_CASE-2024-001234\",\n  \"date\": \"2024-11-15\",\n  \"caseNumber\": \"CASE-2024-001234\",\n  \"editedTranscriptText\": \"JUDGE: Good morning. This is case number CASE-2024-001234.\\nCOURT REPORTER: Proceeding commenced at 09:00 AM.\",\n  \"finalized\": false,\n  \"audioAvailable\": true\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Finalize Transcript",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"JUDGE: Good morning. This is case number CASE-2024-001234.\\nCOURT REPORTER: Proceeding commenced at 09:00 AM.\\nJUDGE: Counsel, please state your appearances.\\nCOUNSEL: Appearances duly noted, Your Honour.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/finalize",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "finalize"]
+            },
+            "description": "Finalize and lock the transcript. Once finalized, the `finalized` flag is `true` and the content cannot be changed. Returns the updated TranscriptItem."
+          },
+          "response": [
+            {
+              "name": "200 — Finalized",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"id\": \"2024-11-15_CASE-2024-001234\",\n  \"date\": \"2024-11-15\",\n  \"caseNumber\": \"CASE-2024-001234\",\n  \"finalizedTranscriptText\": \"JUDGE: Good morning. This is case number CASE-2024-001234.\\nCOURT REPORTER: Proceeding commenced at 09:00 AM.\",\n  \"finalized\": true,\n  \"audioAvailable\": true\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Post-Process Transcript",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"translation_languages\": [\"si\", \"ta\"],\n  \"include_summary\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/post-process",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "post-process"]
+            },
+            "description": "Trigger AI post-processing: generate a formatted court proceedings document, translate into specified languages (BCP-47 codes), and optionally produce a summary. Returns an UploadJob to track progress."
+          },
+          "response": [
+            {
+              "name": "202 — Post-Processing Job Created",
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"id\": \"job_xyz789\",\n  \"status\": \"queued\",\n  \"message\": \"Post-processing queued: translations (si, ta) + summary.\",\n  \"fileName\": null,\n  \"hearingDate\": \"2024-11-15\",\n  \"caseNumber\": \"CASE-2024-001234\",\n  \"transcript\": null,\n  \"errorCode\": null,\n  \"error\": null\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Downloads",
+      "description": "Endpoints for streaming/downloading audio and transcript documents.",
+      "item": [
+        {
+          "name": "Get Audio File (Raw Bytes)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/audio",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "audio"]
+            },
+            "description": "Download the raw audio file bytes. Returns the full file with appropriate audio MIME type. Use the stream endpoint for in-browser playback with range support."
+          },
+          "response": []
+        },
+        {
+          "name": "Stream Audio (Range Support)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Range",
+                "value": "bytes=0-",
+                "description": "Optional: request a byte range for partial content (e.g. seeking)",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/stream?name=hearing_20241115.wav&token={{firebase_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "stream"],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "hearing_20241115.wav",
+                  "description": "Filename of the audio file in storage"
+                },
+                {
+                  "key": "token",
+                  "value": "{{firebase_token}}",
+                  "description": "Firebase ID token (passed as query param for audio element compatibility)"
+                }
+              ]
+            },
+            "description": "Stream audio with HTTP Range support. Authentication is provided via the `token` query parameter (not the Authorization header) to allow use as an `<audio src=\"...\">` URL."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Transcript — Original",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/download/original",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "download", "original"]
+            },
+            "description": "Download the auto-generated transcript as a DOCX file."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Transcript — Edited",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/download/edited",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "download", "edited"]
+            },
+            "description": "Download the human-edited transcript as a DOCX file."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Transcript — Final",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/download/final",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "download", "final"]
+            },
+            "description": "Download the finalized and locked transcript as a DOCX file."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Transcript — SRT",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/download/srt",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "download", "srt"]
+            },
+            "description": "Download the SubRip (SRT) subtitle file for the transcript."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Transcript — Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/download/summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "download", "summary"]
+            },
+            "description": "Download the AI-generated summary document as a DOCX file (requires post-processing with `include_summary: true`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Transcript — All Translations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/download/translation_combined",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "download", "translation_combined"]
+            },
+            "description": "Download all translations combined into a single DOCX file."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Named File from Storage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/transcripts/{{item_id}}/file?name=translation_si.docx",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transcripts", "{{item_id}}", "file"],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "translation_si.docx",
+                  "description": "Filename to retrieve from the transcript's storage folder"
+                }
+              ]
+            },
+            "description": "Retrieve any named file from a transcript's storage folder by filename. Useful for fetching individual translation documents or other generated files listed in `TranscriptItem.files`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "description": "System-level endpoints, including health check.",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Returns the health status of the API server. No authentication required. Use this for load balancer health probes and uptime monitors."
+          },
+          "response": [
+            {
+              "name": "200 — Healthy",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {"key": "Content-Type", "value": "application/json"}
+              ],
+              "body": "{\n  \"status\": \"ok\",\n  \"version\": \"1.0.0\",\n  \"timestamp\": \"2024-11-15T09:00:00Z\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

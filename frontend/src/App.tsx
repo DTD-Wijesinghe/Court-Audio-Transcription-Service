@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import AdminDashboard from './pages/AdminDashboard'
-import Upload from './pages/Upload'
 import ProtectedRoute from './routes/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -20,11 +19,6 @@ export default function App() {
             <Route path="/admin" element={
               <ProtectedRoute role="System Administrator">
                 <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/upload" element={
-              <ProtectedRoute role="Staff User">
-                <Upload />
               </ProtectedRoute>
             } />
           </Routes>

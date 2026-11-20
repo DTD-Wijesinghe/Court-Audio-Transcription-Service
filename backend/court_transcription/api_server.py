@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.exceptions import RequestValidationError
@@ -144,7 +144,14 @@ def _job_counts() -> dict[str, int]:
         "perCourt": per_court,
     }
 
-app = FastAPI(title="Court Audio Transcription API")
+app = FastAPI(
+    title="IntelliScribe Court Audio Transcription API",
+    description="REST API for court audio upload, transcription, editing, finalization, translation and download.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -202,6 +209,12 @@ from .config import PROJECT_ID, LOCATION   # ← add these to existing import
 @app.on_event("startup")
 def _startup() -> None:
     """Start workers without allowing an external service to block API startup."""
+    print("\n" + "=" * 60)
+    print("  IntelliScribe Court Audio Transcription API")
+    print("  Swagger UI: http://localhost:8000/docs")
+    print("  ReDoc:      http://localhost:8000/redoc")
+    print("  OpenAPI:    http://localhost:8000/openapi.json")
+    print("=" * 60 + "\n")
     threading.Thread(target=_cleanup_stale_temp_storage, daemon=True).start()
     threading.Thread(target=_recover_jobs_from_s3, daemon=True).start()
     threading.Thread(target=_poll_vertex_jobs, daemon=True).start()
@@ -3227,3 +3240,25 @@ async def upload_audio(
 @app.get("/api/jobs/{job_id}")
 def get_upload_job(job_id: str, current_user: AuthenticatedUser = Depends(_require_authenticated_user)) -> dict[str, Any]:
     return _get_authorized_job(job_id, current_user)
+
+
+# ---------------------------------------------------------------------------
+# /api/v1 versioned router
+# ---------------------------------------------------------------------------
+v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
+
+v1_router.add_api_route("/health", health, methods=["GET"], tags=["System"], summary="Health check")
+v1_router.add_api_route("/uploads", upload_audio, methods=["POST"], tags=["Audio Upload"], summary="Upload audio file(s) and start a transcription job")
+v1_router.add_api_route("/jobs/{job_id}", get_upload_job, methods=["GET"], tags=["Jobs"], summary="Get transcription job status")
+v1_router.add_api_route("/transcript-dates", transcript_dates, methods=["GET"], tags=["Transcripts"], summary="List dates that have transcripts")
+v1_router.add_api_route("/transcripts", list_transcripts, methods=["GET"], tags=["Transcripts"], summary="List transcripts for a given date")
+v1_router.add_api_route("/transcripts/{item_id}", get_transcript, methods=["GET"], tags=["Transcripts"], summary="Get a single transcript with full content")
+v1_router.add_api_route("/transcripts/{item_id}/edited", save_edited_transcript, methods=["PUT"], tags=["Transcripts"], summary="Save an edited transcript")
+v1_router.add_api_route("/transcripts/{item_id}/finalize", finalize_transcript, methods=["POST"], tags=["Transcripts"], summary="Finalize a transcript")
+v1_router.add_api_route("/transcripts/{item_id}/post-process", generate_verified_outputs, methods=["POST"], tags=["Transcripts"], summary="Generate proceeding and/or translations")
+v1_router.add_api_route("/transcripts/{item_id}/audio", transcript_audio, methods=["GET"], tags=["Downloads"], summary="Get audio file bytes")
+v1_router.add_api_route("/transcripts/{item_id}/stream", stream_transcript_file, methods=["GET"], tags=["Downloads"], summary="Stream audio with HTTP range support")
+v1_router.add_api_route("/transcripts/{item_id}/download/{version}", download_transcript, methods=["GET"], tags=["Downloads"], summary="Download a versioned transcript (original, edited, final, srt, summary, translation_combined)")
+v1_router.add_api_route("/transcripts/{item_id}/file", transcript_storage_file, methods=["GET"], tags=["Downloads"], summary="Get a named file from storage for a transcript")
+
+app.include_router(v1_router)
