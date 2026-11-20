@@ -19,6 +19,8 @@ htmlcov/
 **/.env.*
 !**/.env.example
 backend/credentials/
+**/*service-account*.json
+**/*-project-*.json
 *.pem
 *.key
 
